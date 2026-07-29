@@ -3,6 +3,14 @@ package com.eliobrostech.mambastudio.storage
 import android.os.Environment
 import java.io.File
 
+/**
+ * Gerenciador de ficheiros legado.
+ * Mantido para compatibilidade — delegando para o novo FileManager.
+ *
+ * NOTA: StorageManager salva em "MambaStudio/" (raiz direta).
+ * FileManager salva em "MambaStudio/files/" (com subpasta).
+ */
+@Deprecated("Usar FileManager para novas funcionalidades")
 object StorageManager {
     private val rootDir = File(Environment.getExternalStorageDirectory(), "MambaStudio")
 
