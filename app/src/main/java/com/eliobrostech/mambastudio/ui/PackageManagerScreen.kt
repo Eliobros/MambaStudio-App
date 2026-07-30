@@ -14,7 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.eliobrostech.mambastudio.runner.MambaRunner
+import com.eliobrostech.mambastudio.runner.NodeJsRunner
 import com.eliobrostech.mambastudio.storage.FileManager
 import kotlinx.coroutines.launch
 import java.io.File
@@ -36,7 +36,7 @@ fun PackageManagerScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val runner = remember { MambaRunner(context) }
+    val runner = remember { NodeJsRunner(context) }
 
     // Estado
     var installedPackages by remember { mutableStateOf<List<InstalledPackage>>(emptyList()) }
@@ -44,13 +44,14 @@ fun PackageManagerScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showInstallDialog by remember { mutableStateOf(false) }
     var installPackageName by remember { mutableStateOf("") }
-
     // Carrega pacotes instalados
     fun refreshPackages() {
         installedPackages = scanInstalledPackages()
     }
 
+    // Inicia Node.js automaticamente
     LaunchedEffect(Unit) {
+        runner.start()
         refreshPackages()
     }
 
@@ -226,7 +227,6 @@ fun PackageManagerScreen(
                             scope.launch {
                                 showInstallDialog = false
                                 isLoading = true
-                                outputMessage = null
                                 val result = runner.instalarPacote(
                                     nomePacote = name,
                                     workingDir = FileManager.getBasePath()

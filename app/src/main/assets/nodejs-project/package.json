@@ -1,0 +1,65 @@
+{
+  "name": "mambascript-mz",
+  "version": "2.21.0",
+  "description": "🐍 Linguagem de programação moçambicana - Rápida, poderosa e em português!",
+  "main": "index.js",
+  "bin": {
+    "mambas": "mambas"
+  },
+  "scripts": {
+    "test": "node mambas exemplos/ola.ms",
+    "build": "pkg mambas --out-path dist --targets node18-linux-x64,node18-macos-x64,node18-win-x64"
+  },
+  "keywords": [
+    "mambascript",
+    "mozambique",
+    "moçambique",
+    "programming",
+    "portuguese",
+    "português",
+    "language",
+    "linguagem",
+    "interpreter",
+    "compiler"
+  ],
+  "author": "Habibo Salimo Julio <eliobrostech3@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Eliobros/MambaScript.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Eliobros/MambaScript/issues"
+  },
+  "homepage": "https://github.com/Eliobros/MambaScript#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.106.2",
+    "archiver": "^8.0.0",
+    "bcrypt": "^6.0.0",
+    "form-data": "^4.0.5",
+    "mysql2": "^3.22.3",
+    "node-fetch": "^2.7.0",
+    "prompt-sync": "^4.2.0",
+    "tar": "^7.5.15"
+  },
+  "pkg": {
+    "scripts": [
+      "Lexer/lexer.js",
+      "Parser/parser.js",
+      "Evaluator/evaluate.js",
+      "Instalador/instalador.js",
+      "Instalador/publicador.js"
+    ],
+    "assets": [
+      "node_modules/prompt-sync/**/*"
+    ],
+    "targets": [
+      "node18-win-x64",
+      "node18-linux-x64",
+      "node18-macos-x64"
+    ]
+  }
+}

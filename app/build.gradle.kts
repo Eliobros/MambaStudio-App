@@ -19,6 +19,19 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // CMake configuration for native-lib (Node.js JNI bridge)
+        externalNativeBuild {
+            cmake {
+                cppFlags += ""
+                arguments("-DANDROID_STL=c++_shared")
+            }
+        }
+
+        // Only build for arm64-v8a (modern Android devices)
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     buildTypes {
@@ -28,12 +41,29 @@ android {
             }
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     buildFeatures {
         compose = true
+    }
+
+    // CMake external native build
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
+    // jniLibs directory for prebuilt libnode.so
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDirs("src/main/jniLibs")
+        }
     }
 }
 
@@ -47,12 +77,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    
-    // Retrofit & Networking
-    implementation(libs.retrofit)
-    implementation(libs.okhttp)
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.retrofit.serialization)
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

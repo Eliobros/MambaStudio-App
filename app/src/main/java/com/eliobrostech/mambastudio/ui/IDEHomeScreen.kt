@@ -18,7 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.eliobrostech.mambastudio.runner.MambaRunner
+import com.eliobrostech.mambastudio.runner.NodeJsRunner
 import com.eliobrostech.mambastudio.storage.FileItem
 import com.eliobrostech.mambastudio.storage.FileManager
 import kotlinx.coroutines.launch
@@ -46,12 +46,11 @@ fun IDEHomeScreen() {
     var consoleOutput by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
 
-    // MambaRunner para execução local
-    val runner = remember { MambaRunner(context) }
-    var binaryReady by remember { mutableStateOf(runner.isBinaryDownloaded) }
-    var showBinaryDialog by remember { mutableStateOf(!runner.isBinaryDownloaded) }
-    var downloadProgress by remember { mutableStateOf(0f) }
-    var isDownloading by remember { mutableStateOf(false) }
+    // NodeJsRunner para execução local via Node.js embutido
+    val runner = remember { NodeJsRunner(context) }
+    var nodeReady by remember { mutableStateOf(false) }
+    var isStartingNode by remember { mutableStateOf(false) }
+    var showNodeDialog by remember { mutableStateOf(true) }
 
     // Estado do drawer (lista de ficheiros)
     var allFiles by remember { mutableStateOf<List<FileItem>>(emptyList()) }
@@ -66,65 +65,34 @@ fun IDEHomeScreen() {
         if (content != null) code = content
         // Carrega lista de ficheiros para o drawer
         allFiles = FileManager.listAllMambaFiles()
+
+        // Inicia Node.js em background
+        isStartingNode = true
+        runner.start().onSuccess {
+            nodeReady = true
+            showNodeDialog = false
+        }.onFailure { error ->
+            android.util.Log.e("IDEHomeScreen", "❌ Node.js: ${error.message}")
+            // Mesmo sem Node.js, o app funciona (apenas sem execução)
+            showNodeDialog = false
+        }
+        isStartingNode = false
     }
 
-    // Dialog de download do binário (mostra na 1ª execução)
-    if (showBinaryDialog) {
+    // Dialog de inicialização do Node.js
+    if (showNodeDialog && isStartingNode) {
         AlertDialog(
-            onDismissRequest = { /* Não pode dispensar */ },
-            icon = { Icon(Icons.Default.Download, null, tint = MaterialTheme.colorScheme.primary) },
-            title = { Text("MambaScript Engine") },
+            onDismissRequest = { /* Não pode dispensar enquanto carrega */ },
+            icon = { CircularProgressIndicator(modifier = Modifier.size(24.dp)) },
+            title = { Text("A iniciar motor...") },
             text = {
-                Column {
-                    Text(
-                        "Para executar código MambaScript offline, precisas descarregar o motor de execução (~15MB).",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    if (isDownloading) {
-                        LinearProgressIndicator(
-                            progress = { downloadProgress },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "${(downloadProgress * 100).toInt()}%",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                Text(
+                    "A preparar o motor MambaScript (Node.js embutido). Isto leva apenas alguns segundos.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            isDownloading = true
-                            downloadProgress = 0f
-                            runner.downloadBinary(
-                                onProgress = { progress ->
-                                    downloadProgress = progress
-                                }
-                            ).onSuccess {
-                                binaryReady = true
-                                showBinaryDialog = false
-                                Toast.makeText(context, "✅ Motor MambaScript instalado!", Toast.LENGTH_SHORT).show()
-                            }.onFailure { error ->
-                                Toast.makeText(context, "❌ Erro: ${error.message}", Toast.LENGTH_LONG).show()
-                                showBinaryDialog = false
-                            }
-                            isDownloading = false
-                        }
-                    },
-                    enabled = !isDownloading
-                ) { Text("Descarregar (15MB)") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showBinaryDialog = false
-                    Toast.makeText(context, "Podes descarregar depois no menu", Toast.LENGTH_SHORT).show()
-                }) { Text("Agora não") }
-            }
+            confirmButton = {},
+            dismissButton = {}
         )
     }
 
@@ -175,7 +143,7 @@ fun IDEHomeScreen() {
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-                // Estado do binário
+                // Estado do motor
                 Text(
                     "Motor",
                     style = MaterialTheme.typography.labelMedium,
@@ -186,23 +154,19 @@ fun IDEHomeScreen() {
                 NavigationDrawerItem(
                     icon = {
                         Icon(
-                            if (binaryReady) Icons.Default.CheckCircle else Icons.Default.Download,
+                            if (nodeReady) Icons.Default.CheckCircle else Icons.Default.Sync,
                             null,
-                            tint = if (binaryReady) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                            tint = if (nodeReady) Color(0xFF4CAF50) else Color(0xFFFFA000)
                         )
                     },
                     label = {
                         Text(
-                            if (binaryReady) "MambaScript pronto" else "Descarregar motor",
+                            if (nodeReady) "Node.js v18 (embutido)" else if (isStartingNode) "A iniciar..." else "Pronto (offline)",
                             fontSize = 13.sp
                         )
                     },
                     selected = false,
-                    onClick = {
-                        if (!binaryReady) {
-                            showBinaryDialog = true
-                        }
-                    },
+                    onClick = {},
                     modifier = Modifier.padding(horizontal = 8.dp)
                 )
 
@@ -268,15 +232,13 @@ fun IDEHomeScreen() {
                     onCodeChange = { code = it },
                     consoleOutput = consoleOutput,
                     isLoading = isLoading,
-                    binaryReady = binaryReady || runner.isBinaryDownloaded,
+                    nodeReady = nodeReady,
                     onSave = {
                         scope.launch {
                             if (currentFileItem != null) {
                                 FileManager.writeFile(currentFileItem!!, code)
-                                // Atualiza a lista de ficheiros se o nome mudou
                                 allFiles = FileManager.listAllMambaFiles()
                             } else {
-                                // Salva como novo ficheiro
                                 val name = "index.ms"
                                 FileManager.saveFile(name, code)
                                 val savedFile = FileItem.fromFile(
@@ -293,20 +255,20 @@ fun IDEHomeScreen() {
                             isLoading = true
                             consoleOutput = "A executar..."
 
-                            // Salva antes de executar (apenas no caminho exato)
+                            // Salva antes de executar
                             if (currentFileItem != null) {
                                 FileManager.writeFile(currentFileItem!!, code)
                             } else {
                                 FileManager.writeFileAtPath(FileManager.getDefaultFilePath(), code)
                             }
 
-                            if (!binaryReady) {
-                                consoleOutput = "❌ Motor MambaScript não descarregado.\nVai ao menu → Motor para descarregar."
+                            if (!nodeReady) {
+                                consoleOutput = "❌ Motor Node.js não está pronto.\nA aguardar inicialização..."
                                 isLoading = false
                                 return@launch
                             }
 
-                            // Execução LOCAL 🚀
+                            // Execução via Node.js embutido 🚀
                             val scriptPath = currentFileItem?.path
                                 ?: FileManager.getDefaultFilePath()
 
@@ -368,7 +330,7 @@ private fun EditorView(
     onCodeChange: (String) -> Unit,
     consoleOutput: String,
     isLoading: Boolean,
-    binaryReady: Boolean,
+    nodeReady: Boolean,
     onSave: () -> Unit,
     onRun: () -> Unit,
     onClearConsole: () -> Unit,
@@ -406,14 +368,15 @@ private fun EditorView(
                     }
                 },
                 actions = {
-                    // Indicador de modo (local/API)                        if (binaryReady) {
-                            Icon(
-                                Icons.Default.OfflineBolt,
-                                contentDescription = "Modo offline",
-                                tint = Color(0xFF4CAF50),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+                    // Indicador de modo local
+                    if (nodeReady) {
+                        Icon(
+                            Icons.Default.OfflineBolt,
+                            contentDescription = "Modo offline",
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
 
                     // Salvar
                     IconButton(onClick = onSave) {
