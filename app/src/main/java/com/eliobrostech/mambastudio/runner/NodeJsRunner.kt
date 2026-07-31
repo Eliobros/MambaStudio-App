@@ -91,8 +91,12 @@ class NodeJsRunner(context: Context) {
         }
 
         try {
+            // Diagnóstico: marcadores para saber onde o app crasha
+            escreverPasso("start_comecou")
+
             // 1. Copiar Node.js project dos assets para filesDir
             copyNodeProject()
+            escreverPasso("projecto_copiado")
 
             // 2. Limpar port file antigo
             val portFile = getPortFile()
@@ -107,11 +111,13 @@ class NodeJsRunner(context: Context) {
                         File(nodeDir, "main.js").absolutePath,
                         appContext.filesDir.absolutePath
                     )
+                    escreverPasso("node_start_chamado")
                     startNodeWithArguments(args)
                 } catch (e: Exception) {
                     android.util.Log.e(TAG, "❌ Node.js thread crashed: ${e.message}")
                 }
             }, "NodeJsThread").also { it.isDaemon = true }.start()
+            escreverPasso("thread_iniciada")
 
             // 4. Aguardar o servidor HTTP ficar pronto (polling no port file)
             val startTime = System.currentTimeMillis()
@@ -137,6 +143,7 @@ class NodeJsRunner(context: Context) {
             }
 
             android.util.Log.i(TAG, "✅ Node.js v18 pronto na porta $staticNodePort")
+            escreverPasso("node_pronto_porta_$staticNodePort")
             Result.success(Unit)
         } catch (e: Exception) {
             android.util.Log.e(TAG, "❌ Erro ao iniciar Node.js: ${e.message}")
@@ -250,6 +257,35 @@ class NodeJsRunner(context: Context) {
 }
 
     // ======================== INTERNO ========================
+
+    /**
+     * Escreve um marcador de progresso para diagnóstico.
+     * Se o app crashar, o último marcador diz-nos exatamente onde.
+     */
+    private fun escreverPasso(passo: String) {
+        try {
+            val texto = "$passo - ${System.currentTimeMillis()}"
+            File(appContext.filesDir, "passo.txt").writeText(texto)
+            // getExternalFilesDir: SEM permissão, visível no gestor de ficheiros
+            try {
+                val extDir = appContext.getExternalFilesDir(null)
+                if (extDir != null) {
+                    extDir.mkdirs()
+                    File(extDir, "passo.txt").writeText(texto)
+                }
+            } catch (_: Exception) {}
+            // Tenta também no armazenamento partilhado (se tiver permissão)
+            try {
+                val sharedDir = File(
+                    android.os.Environment.getExternalStorageDirectory(),
+                    "MambaStudio/files"
+                )
+                if (sharedDir.exists() || sharedDir.mkdirs()) {
+                    File(sharedDir, "passo.txt").writeText(texto)
+                }
+            } catch (_: Exception) {}
+        } catch (_: Exception) {}
+    }
 
     private fun getNodeDir(): File = File(appContext.filesDir, "nodejs-project")
 

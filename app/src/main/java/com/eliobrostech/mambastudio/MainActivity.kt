@@ -77,6 +77,14 @@ class MainActivity : ComponentActivity() {
                 appendLine("if tamanho_pagina=16384 -> paginas de 16KB (crash libnode.so!)")
             }
             File(filesDir, "diagnostico.txt").writeText(diag)
+            // getExternalFilesDir: SEM permissão, visível no gestor de ficheiros
+            try {
+                val extDir = getExternalFilesDir(null)
+                if (extDir != null) {
+                    extDir.mkdirs()
+                    File(extDir, "diagnostico.txt").writeText(diag)
+                }
+            } catch (_: Exception) {}
             try {
                 val sharedDir = File(Environment.getExternalStorageDirectory(), "MambaStudio/files")
                 if (sharedDir.exists() || sharedDir.mkdirs()) {
@@ -100,6 +108,13 @@ class MainActivity : ComponentActivity() {
                     val trace = android.util.Log.getStackTraceString(throwable)
                     val diag = "thread=${thread.name}\n$trace"
                     File(filesDir, "crash_java.txt").writeText(diag)
+                    try {
+                        val extDir = getExternalFilesDir(null)
+                        if (extDir != null) {
+                            extDir.mkdirs()
+                            File(extDir, "crash_java.txt").writeText(diag)
+                        }
+                    } catch (_: Exception) {}
                     try {
                         val sharedDir = File(Environment.getExternalStorageDirectory(), "MambaStudio/files")
                         if (sharedDir.exists() || sharedDir.mkdirs()) {
