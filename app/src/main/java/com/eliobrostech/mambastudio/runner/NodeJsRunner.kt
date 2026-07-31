@@ -165,9 +165,9 @@ class NodeJsRunner(context: Context) {
             val result = parseJsonResponse(response)
 
             if (result["success"] == true) {
-                Result.success(result["output"] ?: "")
+                Result.success(result["output"]?.toString() ?: "")
             } else {
-                Result.failure(Exception(result["error"] ?: "❌ Erro desconhecido"))
+                Result.failure(Exception(result["error"]?.toString() ?: "❌ Erro desconhecido"))
             }
         } catch (e: Exception) {
             Result.failure(Exception("❌ Erro na execução: ${e.message}"))
@@ -200,9 +200,9 @@ class NodeJsRunner(context: Context) {
             val result = parseJsonResponse(response)
 
             if (result["success"] == true) {
-                Result.success(result["output"] ?: "")
+                Result.success(result["output"]?.toString() ?: "")
             } else {
-                Result.failure(Exception(result["error"] ?: "❌ Erro no comando"))
+                Result.failure(Exception(result["error"]?.toString() ?: "❌ Erro no comando"))
             }
         } catch (e: Exception) {
             Result.failure(Exception("❌ Erro no comando: ${e.message}"))
@@ -210,9 +210,13 @@ class NodeJsRunner(context: Context) {
     }
 
     /** Atalho para instalar pacote */
-    suspend fun instalarPacote(nomePacote: String): Result<String> {
-        return executarComando(args = listOf("instalar", nomePacote))
-    }
+    suspend fun instalarPacote(
+    nomePacote: String,
+    workingDir: String = appContext.filesDir.absolutePath
+): Result<String> {
+    return executarComando(args = listOf("instalar", nomePacote), workingDir = workingDir)
+}
+
 
     /** Atalho para listar pacotes */
     suspend fun listarPacotes(): Result<String> {
@@ -220,9 +224,12 @@ class NodeJsRunner(context: Context) {
     }
 
     /** Atalho para remover pacote */
-    suspend fun removerPacote(nomePacote: String): Result<String> {
-        return executarComando(args = listOf("remover", nomePacote))
-    }
+    suspend fun removerPacote(
+    nomePacote: String,
+    workingDir: String = appContext.filesDir.absolutePath
+): Result<String> {
+    return executarComando(args = listOf("remover", nomePacote), workingDir = workingDir)
+}
 
     // ======================== INTERNO ========================
 
