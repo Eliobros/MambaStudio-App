@@ -51,6 +51,14 @@ android {
         compose = true
     }
 
+    // REQUERIDO pelo nodejs-mobile: extrair libnode.so para o filesystem.
+    // Sem isto, System.loadLibrary("node") falha (dlopen) e o app fecha ao abrir.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     // CMake external native build
     externalNativeBuild {
         cmake {

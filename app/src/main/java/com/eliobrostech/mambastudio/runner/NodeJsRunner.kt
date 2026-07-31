@@ -38,10 +38,22 @@ class NodeJsRunner(context: Context) {
 
         private val staticAppContext: AtomicBoolean = AtomicBoolean(false)
 
+        // Mensagem de erro se as libs nativas não carregarem (em vez de crash)
+        @Volatile
+        var nativeLibError: String? = null
+        private set
+
         // Carrega as bibliotecas nativas (libnode.so + native-lib.so)
+        // NOTA: falhas aqui (ex: libnode.so ausente/compressa) eram crash instantâneo.
+        // Agora capturamos o erro para o app abrir e mostrar a mensagem.
         init {
-            System.loadLibrary("node")
-            System.loadLibrary("native-lib")
+            try {
+                System.loadLibrary("node")
+                System.loadLibrary("native-lib")
+            } catch (e: Throwable) {
+                nativeLibError = e.message ?: e.javaClass.simpleName
+                android.util.Log.e(TAG, "❌ Falha ao carregar libs nativas: $nativeLibError", e)
+            }
         }
     }
 
@@ -67,6 +79,12 @@ class NodeJsRunner(context: Context) {
      * Só executa uma vez — as chamadas seguintes são no-op.
      */
     suspend fun start(): Result<Unit> = withContext(Dispatchers.IO) {
+        if (nativeLibError != null) {
+            return@withContext Result.failure(
+                Exception("❌ Motor nativo indisponível: $nativeLibError")
+            )
+        }
+
         if (staticNodeStarted) {
             android.util.Log.i(TAG, "Node.js já iniciado (porta $staticNodePort)")
             return@withContext Result.success(Unit)

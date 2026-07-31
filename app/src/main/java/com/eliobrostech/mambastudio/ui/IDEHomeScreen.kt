@@ -73,6 +73,8 @@ fun IDEHomeScreen() {
             showNodeDialog = false
         }.onFailure { error ->
             android.util.Log.e("IDEHomeScreen", "❌ Node.js: ${error.message}")
+            // Mostra o erro no Console do app para o utilizador ver
+            consoleOutput = "❌ ${error.message}"
             // Mesmo sem Node.js, o app funciona (apenas sem execução)
             showNodeDialog = false
         }
