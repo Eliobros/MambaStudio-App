@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import java.io.File
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -36,6 +37,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        registarHandlerCrash()
+        escreverDiagnostico()
         checkPermissions()
 
         setContent {
@@ -56,6 +59,57 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         checkPermissions()
+    }
+
+    /**
+     * Escreve um ficheiro de diagnóstico (modelo, Android, tamanho de página)
+     * para o armazenamento partilhado e interno. Sobrevive mesmo a crash nativo.
+     */
+    private fun escreverDiagnostico() {
+        try {
+            val pageSize = android.system.Os.sysconf(android.system.OsConstants._SC_PAGESIZE)
+            val diag = buildString {
+                appendLine("modelo=${Build.MODEL}")
+                appendLine("marca=${Build.MANUFACTURER}")
+                appendLine("android=${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+                appendLine("tamanho_pagina=$pageSize bytes")
+                appendLine("if tamanho_pagina=4096 -> paginas de 4KB (normal)")
+                appendLine("if tamanho_pagina=16384 -> paginas de 16KB (crash libnode.so!)")
+            }
+            File(filesDir, "diagnostico.txt").writeText(diag)
+            try {
+                val sharedDir = File(Environment.getExternalStorageDirectory(), "MambaStudio/files")
+                if (sharedDir.exists() || sharedDir.mkdirs()) {
+                    File(sharedDir, "diagnostico.txt").writeText(diag)
+                }
+            } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Erro ao escrever diagnostico: ${e.message}")
+        }
+    }
+
+    /**
+     * Captura crashes de Java para um ficheiro (para diagnóstico) e
+     * re-encaminha para o handler padrão do Android.
+     */
+    private fun registarHandlerCrash() {
+        try {
+            val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+            Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+                try {
+                    val trace = android.util.Log.getStackTraceString(throwable)
+                    val diag = "thread=${thread.name}\n$trace"
+                    File(filesDir, "crash_java.txt").writeText(diag)
+                    try {
+                        val sharedDir = File(Environment.getExternalStorageDirectory(), "MambaStudio/files")
+                        if (sharedDir.exists() || sharedDir.mkdirs()) {
+                            File(sharedDir, "crash_java.txt").writeText(diag)
+                        }
+                    } catch (_: Exception) {}
+                } catch (_: Exception) {}
+                defaultHandler?.uncaughtException(thread, throwable)
+            }
+        } catch (_: Exception) {}
     }
 
     private fun checkPermissions() {
